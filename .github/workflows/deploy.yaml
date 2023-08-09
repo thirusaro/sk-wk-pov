@@ -1,0 +1,54 @@
+name: Deploy Sk-wk-pov
+
+on:
+  push:
+    branches: main
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+env:
+
+  IMAGE: sk-wk-pov
+
+jobs:
+  deploy:
+    name: Build & Notify Humanitec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set Tag with SHA
+        run: echo "TAG=`echo $GITHUB_SHA | cut -c 1-7`" >> $GITHUB_ENV
+
+      - run: |
+          
+          echo "${{ secrets.ACR_PUSH_SP_PASSWORD }}" | docker login \
+              ${{ secrets.ACR_SERVER_NAME }} \
+              -u ${{ secrets.ACR_PUSH_SP_ID }} \
+              --password-stdin
+          
+      
+      - run: docker build --platform linux/amd64 . -t ${{ secrets.ACR_SERVER_NAME }}/$IMAGE:$TAG
+      - run: docker push ${{ secrets.ACR_SERVER_NAME }}/$IMAGE:$TAG
+      
+
+      - name: Inform Humanitec
+        run: |-
+          curl \
+            --request POST 'https://api.humanitec.io/orgs/${{ secrets.HUMANITEC_ORG_ID }}/artefact-versions' \
+            --header 'Authorization: Bearer ${{ secrets.HUMANITEC_TOKEN }}' \
+            --header 'Content-Type: application/json' \
+            --data-raw '{
+                "name": "'${{ secrets.ACR_SERVER_NAME }}/$IMAGE'",
+                "version": "'$TAG'",
+                "type": "container",
+                "commit": "'$GITHUB_SHA'",
+                "ref": "'$GITHUB_REF'"
+            }'
+      - name: Deploy using Score
+        run: |
+          wget https://github.com/score-spec/score-humanitec/releases/download/0.6.0/score-humanitec_0.6.0_linux_amd64.tar.gz
+          tar -xvzf ./score-humanitec_0.6.0_linux_amd64.tar.gz
+
+          ./score-humanitec delta --env development --app sk-wk-pov --org="${{ secrets.HUMANITEC_ORG_ID }}" --token "${{ secrets.HUMANITEC_TOKEN }}" --deploy --property containers.frontend.image=${{ secrets.ACR_SERVER_NAME }}/$IMAGE:$TAG
+

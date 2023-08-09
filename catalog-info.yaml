@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: "sk-wk-pov"
+  annotations:
+    "humanitec.com/orgId": "htc-demo-011"
+    "humanitec.com/appId": "sk-wk-pov"
+spec:
+  type: service
+  owner: user:guest
+  lifecycle: experimental
