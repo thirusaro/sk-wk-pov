@@ -14,7 +14,14 @@ containers:
     image: # Set by pipeline
     variables:
       Hello: World
+      AZURE_CONTAINER: ${resources.asset.container}
+      AZURE_STORAGE_ACCOUNT: ${resources.asset.account}
 
 resources:
   dns: # We need a DNS record to point to the service 
     type: dns
+  asset:
+    type: azure-blob
+    properties:
+      container:
+      account:
